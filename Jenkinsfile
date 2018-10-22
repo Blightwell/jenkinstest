@@ -1,42 +1,43 @@
-pipeline {
-  environment {
-    registry = "choapinus/docker-ribbit"
-    registryCredential = 'dockerhub'
-    dockerImage = ''
-  }
-  agent any
-  tools {python "python"}
-  stages {
-    stage('Cloning Git') {
-      steps {
-        git 'https://gitlab.com/Choapinus/t1_arqsist'
-      }
-    }
-    stage('Build') {
-       steps {
-         sh 'python manage.py runserver 0:8081'
+django('django') {
+    currentBuild.result = "SUCCESS"
+
+    try {
+
+       stage('Test'){
+
+         print "Checking if git is installed"
+
+         sh 'git -v'
+
        }
+
+       stage('Pull from repository'){
+
+          sh './pullFromGit.sh'
+
+       }
+
+       stage('Build Docker Image'){
+
+          sh './dockerBuild.sh'
+       }
+
+       stage('Deploy'){
+
+         echo 'Push to Repo'
+         sh './dockerPushToHeroku.sh'
+
+       }
+
     }
-    stage('Test') {
-      steps {
-        echo 'omitido por emergencias'
-      }
+
+    catch (err) {
+
+        currentBuild.result = "FAILURE"
+
+        echo 'Build or Deploy failure'
+       
+        throw err
     }
-    stage('Building image') {
-      steps{
-        script {
-          dockerImage = docker.build registry + ":$BUILD_NUMBER"
-        }
-      }
-    }
-    stage('Deploy Image') {
-      steps{
-         script {
-            docker.withRegistry( '', registryCredential ) {
-            dockerImage.push()
-          }
-        }
-      }
-    }
-  }
+
 }
